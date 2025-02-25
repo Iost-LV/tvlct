@@ -5,88 +5,87 @@ const chart = LightweightCharts.createChart(document.getElementById('chart'), {
     timeScale: { timeVisible: true, secondsVisible: false },
 });
 
-// Add series
 const candleSeries = chart.addCandlestickSeries({ title: 'BTC Price' });
 const oiSeries = chart.addLineSeries({ color: 'blue', lineWidth: 2, title: 'Open Interest' });
 const liqSeries = chart.addLineSeries({ color: 'red', lineWidth: 2, title: 'Liquidations' });
 
-// Bybit WebSocket URLs (public endpoints)
+// Bybit WebSocket URLs
 const wsPrice = new WebSocket('wss://stream.bybit.com/v5/public/spot');
 const wsOi = new WebSocket('wss://stream.bybit.com/v5/public/linear');
 const wsLiq = new WebSocket('wss://stream.bybit.com/v5/public/linear');
 
-// Store initial data
-let priceData = [];
-let oiData = [];
-let liqData = [];
-
-// Subscribe to BTC/USDT spot price (candlestick)
+// Debugging logs
 wsPrice.onopen = () => {
+    console.log('Price WebSocket connected');
     wsPrice.send(JSON.stringify({
         op: 'subscribe',
-        args: ['kline.1m.BTCUSDT'], // 1-minute candlestick for BTC/USDT
+        args: ['kline.1m.BTCUSDT'],
     }));
 };
 
 wsPrice.onmessage = (event) => {
     const data = JSON.parse(event.data);
+    console.log('Price data:', data);
     if (data.topic && data.topic.startsWith('kline')) {
         const kline = data.data[0];
         const candle = {
-            time: kline.start / 1000, // Convert ms to seconds
+            time: kline.start / 1000,
             open: parseFloat(kline.open),
             high: parseFloat(kline.high),
             low: parseFloat(kline.low),
             close: parseFloat(kline.close),
         };
-        priceData.push(candle);
         candleSeries.update(candle);
     }
 };
 
-// Subscribe to BTC/USD perpetual open interest
+wsPrice.onerror = (error) => console.error('Price WebSocket error:', error);
+
 wsOi.onopen = () => {
+    console.log('OI WebSocket connected');
     wsOi.send(JSON.stringify({
         op: 'subscribe',
-        args: ['publicTrade.BTCUSD'], // Trades for OI calculation
+        args: ['publicTrade.BTCUSD'],
     }));
 };
 
 wsOi.onmessage = (event) => {
     const data = JSON.parse(event.data);
+    console.log('OI data:', data);
     if (data.topic && data.topic.startsWith('publicTrade')) {
         const trade = data.data[0];
         const oiPoint = {
             time: trade.timestamp / 1000,
-            value: parseFloat(trade.size), // Simplified OI proxy (trade size)
+            value: parseFloat(trade.size),
         };
-        oiData.push(oiPoint);
         oiSeries.update(oiPoint);
     }
 };
 
-// Subscribe to liquidation data
+wsOi.onerror = (error) => console.error('OI WebSocket error:', error);
+
 wsLiq.onopen = () => {
+    console.log('Liquidation WebSocket connected');
     wsLiq.send(JSON.stringify({
         op: 'subscribe',
-        args: ['liquidation.BTCUSD'], // Liquidation stream
+        args: ['liquidation.BTCUSD'],
     }));
 };
 
 wsLiq.onmessage = (event) => {
     const data = JSON.parse(event.data);
+    console.log('Liquidation data:', data);
     if (data.topic && data.topic.startsWith('liquidation')) {
         const liq = data.data;
         const liqPoint = {
             time: liq.updatedTime / 1000,
             value: parseFloat(liq.size),
         };
-        liqData.push(liqPoint);
         liqSeries.update(liqPoint);
     }
 };
 
-// Handle window resize
-window.addEventListener('resize', () => {
-    chart.resize(window.innerWidth, 500);
-});
+wsLiq.onerror = (error) => console.error('Liquidation WebSocket error:', error);
+
+// Resize handler
+window.addEventListener('resize', () => chart.resize(window.innerWidth, 500));
