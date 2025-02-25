@@ -140,7 +140,7 @@
             const TITLE_DELAY = 1000;
             const OI_POLL_INTERVAL = 1000;
             const MAX_RECONNECT_DELAY = 16000;
-            const LIQ_SENSITIVITY = 100;
+            const LIQ_SENSITIVITY = 100; // Used for liquidation scaling, keep for LIQ
             const PRESSURE_DECAY = 0.99;
 
             const elements = {
@@ -211,11 +211,16 @@
                 return value.toFixed(2);
             };
 
-            const formatDollar = (btcValue) => {
-                const actualBtc = btcValue / LIQ_SENSITIVITY;
-                const dollarValue = Math.round(actualBtc * lastBtcPrice / 10000) * 10000;
-                return '$' + Math.abs(dollarValue).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            };
+           const formatBtc = (value) => {
+           const absValue = Math.abs(value);
+            if (absValue >= 1000) return (value / 1000).toFixed(2) + 'k BTC';
+            return value.toFixed(2) + ' BTC';
+};
+
+const formatDollar = (btcValue) => { // Keep for LIQ
+    const dollarValue = Math.round(btcValue * lastBtcPrice / 10000) * 10000;
+    return '$' + Math.abs(dollarValue).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
 
             const updateColor = (element, value) => {
                 element.classList.remove('negative', 'positive');
